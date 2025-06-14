@@ -149,20 +149,17 @@ let provider, signer;
 
 async function connectWallet() {
   if (!window.ethereum) return alert("Install MetaMask");
+
+  // Explicit prompt (fixes silent connection)
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+
   provider = new ethers.BrowserProvider(window.ethereum);
+  signer = await provider.getSigner();
 
-  try {
-    // PROMPT MetaMask approval
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    signer = await provider.getSigner();
-
-    const address = await signer.getAddress();
-    document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
-    document.getElementById("connectBtn").style.display = "none";
-    document.getElementById("walletBox").style.display = "flex";
-  } catch (err) {
-    alert("❌ Wallet connection rejected");
-  }
+  const address = await signer.getAddress();
+  document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
+  document.getElementById("connectBtn").style.display = "none";
+  document.getElementById("walletBox").style.display = "flex";
 }
 
 function disconnectWallet() {
@@ -179,7 +176,7 @@ function showTab(id) {
   document.getElementById(id).classList.add("active");
 }
 
-// TOKEN CREATION
+// Token creation logic
 const FACTORY_ADDRESS = "0x0f45dc8b06fdb019ece304fdf6e9e515a2b49cf3";
 const FACTORY_ABI = [
   "function createToken(string name, string symbol, uint256 supply) public returns (address)"
@@ -190,6 +187,7 @@ async function createToken() {
   const symbol = document.getElementById("symbol").value.trim();
   const supply = document.getElementById("supply").value.trim();
   const status = document.getElementById("status");
+
   if (!name || !symbol || !supply) return alert("Fill in all fields");
 
   try {
@@ -206,7 +204,7 @@ async function createToken() {
   }
 }
 
-// AIRDROP
+// Airdrop
 const ERC20_ABI = [
   "function transfer(address to, uint amount) external returns (bool)",
   "function decimals() external view returns (uint8)"
@@ -237,6 +235,16 @@ async function sendAirdrop() {
     status.innerText = "❌ Airdrop failed: " + (err.reason || err.message);
   }
 }
+
+window.onload = connectWallet;
 </script>
+<style>
+/* ✨ FIXED ALIGNMENT FOR WALLET BOX */
+.wallet-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+</style>
 </body>
 </html>
