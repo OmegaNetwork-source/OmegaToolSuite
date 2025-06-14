@@ -1,6 +1,6 @@
 {
   "builds": [],
   "routes": [
-    { "src": "/", "dest": "/index.html" }
+    { "src": "/", "dest": "/TokenCreator.html" }
   ]
 }
