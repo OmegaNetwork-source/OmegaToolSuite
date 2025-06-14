@@ -48,8 +48,8 @@
       align-items: center;
       background: #000;
       border-radius: 999px;
-      padding: 6px 12px;
-      gap: 12px;
+      padding: 6px 10px;
+      gap: 10px;
     }
 
     .wallet-controls span {
@@ -62,11 +62,12 @@
       background: #fff;
       color: #000;
       border: none;
-      font-size: 0.85em;
-      padding: 6px 10px;
-      border-radius: 5px;
+      font-size: 0.8em;
+      padding: 4px 8px;
       font-weight: bold;
+      border-radius: 4px;
       cursor: pointer;
+      line-height: 1.2;
     }
 
     #connectBtn {
@@ -76,8 +77,8 @@
       background: #000;
       color: #fff;
       border: none;
-      font-size: 0.9em;
-      padding: 8px 14px;
+      font-size: 0.85em;
+      padding: 6px 10px;
       border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
@@ -125,7 +126,7 @@
   </style>
 </head>
 <body>
-<!-- Wallet Display -->
+<!-- Wallet Controls -->
 <div id="walletBox" class="wallet-controls">
   <span id="walletAddress">0x000...0000</span>
   <button onclick="disconnectWallet()">Disconnect</button>
@@ -168,14 +169,12 @@ async function connectWallet() {
   if (!window.ethereum) return alert("Install MetaMask");
 
   try {
-    // Explicitly prompt MetaMask for approval
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
 
     const address = await signer.getAddress();
-    document.getElementById("walletAddress").innerText =
-      address.slice(0, 6) + "..." + address.slice(-4);
+    document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
     document.getElementById("connectBtn").style.display = "none";
     document.getElementById("walletBox").style.display = "flex";
   } catch (err) {
@@ -197,7 +196,7 @@ function showTab(id) {
   document.getElementById(id).classList.add("active");
 }
 
-// TOKEN CREATION
+// Token Creation Logic
 const FACTORY_ADDRESS = "0x0f45dc8b06fdb019ece304fdf6e9e515a2b49cf3";
 const FACTORY_ABI = [
   "function createToken(string name, string symbol, uint256 supply) public returns (address)"
@@ -224,7 +223,7 @@ async function createToken() {
   }
 }
 
-// AIRDROP
+// Airdrop Logic
 const ERC20_ABI = [
   "function transfer(address to, uint amount) external returns (bool)",
   "function decimals() external view returns (uint8)"
