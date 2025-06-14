@@ -40,7 +40,7 @@
       border-bottom: 2px solid #000;
     }
 
-    .wallet-info {
+    .wallet-controls {
       position: absolute;
       top: 20px;
       right: 20px;
@@ -49,12 +49,12 @@
       align-items: center;
     }
 
-    .wallet-info span {
+    .wallet-controls span {
       font-weight: bold;
       font-family: monospace;
     }
 
-    .wallet-info button {
+    .wallet-controls button {
       background: #000;
       color: #fff;
       border: none;
@@ -106,10 +106,13 @@
   </style>
 </head>
 <body>
-<!-- Wallet Info -->
-<div class="wallet-info" id="walletBox" style="display:none;">
-  <span id="walletAddress">0x000...0000</span>
-  <button onclick="disconnectWallet()">Disconnect</button>
+<!-- Wallet Controls -->
+<div class="wallet-controls">
+  <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+  <div id="walletBox" style="display:none;">
+    <span id="walletAddress">0x000...0000</span>
+    <button onclick="disconnectWallet()">Disconnect</button>
+  </div>
 </div>
 
 <!-- Page Header -->
@@ -147,9 +150,12 @@ let provider, signer;
 async function connectWallet() {
   if (!window.ethereum) return alert("Install MetaMask");
   provider = new ethers.BrowserProvider(window.ethereum);
-  const accounts = await provider.send("eth_requestAccounts", []);
-  signer = provider.getSigner(accounts[0]); // Avoid ENS resolution
-  document.getElementById("walletAddress").innerText = accounts[0].slice(0, 6) + "..." + accounts[0].slice(-4);
+  await provider.send("eth_requestAccounts", []);
+  signer = await provider.getSigner();
+
+  const address = await signer.getAddress();
+  document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
+  document.getElementById("connectBtn").style.display = "none";
   document.getElementById("walletBox").style.display = "flex";
 }
 
@@ -157,6 +163,7 @@ function disconnectWallet() {
   provider = null;
   signer = null;
   document.getElementById("walletBox").style.display = "none";
+  document.getElementById("connectBtn").style.display = "inline-block";
 }
 
 function showTab(id) {
@@ -178,6 +185,7 @@ async function createToken() {
   const supply = document.getElementById("supply").value.trim();
   const status = document.getElementById("status");
   if (!name || !symbol || !supply) return alert("Fill in all fields");
+
   try {
     const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
     const fullSupply = ethers.parseUnits(supply, 18);
@@ -204,12 +212,13 @@ async function sendAirdrop() {
   const text = document.getElementById("manualAirdrop").value.trim();
 
   if (!tokenAddr) return alert("Enter token address");
-  const token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
-  const decimals = await token.decimals();
-  const lines = text.split(/\n|,/).filter(l => l.trim()).map(l => l.trim());
 
-  status.innerText = "Sending...";
   try {
+    const token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+    const decimals = await token.decimals();
+    const lines = text.split(/\n|,/).filter(l => l.trim()).map(l => l.trim());
+
+    status.innerText = "Sending...";
     for (let i = 0; i < lines.length; i += 2) {
       const addr = lines[i];
       const amt = ethers.parseUnits(lines[i + 1], decimals);
