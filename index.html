@@ -82,6 +82,7 @@
       border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
+      width: auto; /* ✅ FIXED WIDTH */
     }
 
     .section {
@@ -196,7 +197,7 @@ function showTab(id) {
   document.getElementById(id).classList.add("active");
 }
 
-// Token Creation Logic
+// TOKEN CREATION
 const FACTORY_ADDRESS = "0x0f45dc8b06fdb019ece304fdf6e9e515a2b49cf3";
 const FACTORY_ABI = [
   "function createToken(string name, string symbol, uint256 supply) public returns (address)"
@@ -223,7 +224,7 @@ async function createToken() {
   }
 }
 
-// Airdrop Logic
+// AIRDROP
 const ERC20_ABI = [
   "function transfer(address to, uint amount) external returns (bool)",
   "function decimals() external view returns (uint8)"
