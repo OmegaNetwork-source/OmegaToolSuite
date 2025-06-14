@@ -150,13 +150,19 @@ let provider, signer;
 async function connectWallet() {
   if (!window.ethereum) return alert("Install MetaMask");
   provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  signer = await provider.getSigner();
 
-  const address = await signer.getAddress();
-  document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
-  document.getElementById("connectBtn").style.display = "none";
-  document.getElementById("walletBox").style.display = "flex";
+  try {
+    // PROMPT MetaMask approval
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    signer = await provider.getSigner();
+
+    const address = await signer.getAddress();
+    document.getElementById("walletAddress").innerText = address.slice(0, 6) + "..." + address.slice(-4);
+    document.getElementById("connectBtn").style.display = "none";
+    document.getElementById("walletBox").style.display = "flex";
+  } catch (err) {
+    alert("❌ Wallet connection rejected");
+  }
 }
 
 function disconnectWallet() {
@@ -231,8 +237,6 @@ async function sendAirdrop() {
     status.innerText = "❌ Airdrop failed: " + (err.reason || err.message);
   }
 }
-
-window.onload = connectWallet;
 </script>
 </body>
 </html>
