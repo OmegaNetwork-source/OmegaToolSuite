@@ -3,73 +3,225 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ωmega Token Creator</title>
+  <title>Ωmega Tool Suite</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 40px; background: #fff; color: #000; }
-    h1 { text-align: center; font-size: 2em; }
-    .container { max-width: 500px; margin: auto; border: 2px solid #000; padding: 30px; border-radius: 10px; }
-    input, button {
-      width: 100%; padding: 12px; margin-top: 12px; font-size: 1em;
-      border: 1px solid #ccc; border-radius: 5px;
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #fff;
+      color: #000;
+      margin: 0;
+      padding: 40px 20px;
     }
-    button { background: #000; color: #fff; cursor: pointer; }
-    button:hover { background: #222; }
-    .status { margin-top: 15px; font-weight: bold; }
+
+    h1 {
+      font-size: 2.2em;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #ccc;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-weight: bold;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab.active {
+      border-bottom: 2px solid #000;
+    }
+
+    .wallet-info {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .wallet-info span {
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .wallet-info button {
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      font-size: 0.9em;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .section {
+      display: none;
+      max-width: 500px;
+      margin: auto;
+      padding-top: 20px;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      background: #000;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #222;
+    }
+
+    .status {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 0.95em;
+    }
+
+    textarea {
+      resize: vertical;
+    }
   </style>
 </head>
 <body>
-  <h1>Create a Token on the Ωmega Network</h1>
-  <div class="container">
-    <input type="text" id="name" placeholder="Token Name" />
-    <input type="text" id="symbol" placeholder="Token Symbol (e.g. OMG)" />
-    <input type="number" id="supply" placeholder="Total Supply (whole number)" />
-    <button onclick="createToken()">Deploy Token</button>
-    <div class="status" id="status"></div>
-  </div>
+<!-- Wallet Info -->
+<div class="wallet-info" id="walletBox" style="display:none;">
+  <span id="walletAddress">0x000...0000</span>
+  <button onclick="disconnectWallet()">Disconnect</button>
+</div>
 
-  <script>
-    const TOKEN_FACTORY_ADDRESS = "0x0f45dc8b06fdb019ece304fdf6e9e515a2b49cf3";
-    const TOKEN_FACTORY_ABI = [
-      "function createToken(string name, string symbol, uint256 supply) public returns (address)"
-    ];
+<!-- Page Header -->
+<h1>Ωmega Tool Suite</h1>
 
-    const OMEGA_RPC = "https://0x4e454228.rpc.aurora-cloud.dev";
-    const OMEGA_CHAIN_ID = 1313161768;
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('create')">Create Token</div>
+  <div class="tab" onclick="showTab('airdrop')">Airdrop</div>
+</div>
 
-    async function createToken() {
-      const status = document.getElementById("status");
-      const name = document.getElementById("name").value.trim();
-      const symbol = document.getElementById("symbol").value.trim();
-      const supply = document.getElementById("supply").value.trim();
+<!-- Create Token Section -->
+<div id="create" class="section active">
+  <input type="text" id="name" placeholder="Token Name" />
+  <input type="text" id="symbol" placeholder="Symbol (e.g. OMG)" />
+  <input type="number" id="supply" placeholder="Total Supply (whole number)" />
+  <button onclick="createToken()">Deploy Token</button>
+  <div class="status" id="status"></div>
+</div>
 
-      if (!window.ethereum) return alert("Please install MetaMask");
-      if (!name || !symbol || !supply) return alert("Fill in all fields");
+<!-- Airdrop Section -->
+<div id="airdrop" class="section">
+  <input type="text" id="airdropToken" placeholder="Token Address" />
+  <p style="margin-top:10px; font-size: 0.9em;">
+    Upload a CSV file (headers: <code>wallet,amount</code>) or paste addresses manually:
+  </p>
+  <input type="file" id="csvFile" accept=".csv" />
+  <textarea id="manualAirdrop" rows="6" placeholder="wallet,amount\nwallet,amount"></textarea>
+  <button onclick="sendAirdrop()">Send Airdrop</button>
+  <div class="status" id="airdropStatus"></div>
+</div>
+<script>
+let provider, signer;
 
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const network = await provider.getNetwork();
+async function connectWallet() {
+  if (!window.ethereum) return alert("Install MetaMask");
+  provider = new ethers.BrowserProvider(window.ethereum);
+  const accounts = await provider.send("eth_requestAccounts", []);
+  signer = await provider.getSigner();
+  document.getElementById("walletAddress").innerText = accounts[0].slice(0, 6) + "..." + accounts[0].slice(-4);
+  document.getElementById("walletBox").style.display = "flex";
+}
 
-        if (network.chainId !== OMEGA_CHAIN_ID) {
-          return alert("Please connect to the Ωmega Network");
-        }
+function disconnectWallet() {
+  provider = null;
+  signer = null;
+  document.getElementById("walletBox").style.display = "none";
+}
 
-        const factory = new ethers.Contract(TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, signer);
-        const fullSupply = ethers.parseUnits(supply, 18);
+function showTab(id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelector(`.tab[onclick="showTab('${id}')"]`).classList.add("active");
+  document.getElementById(id).classList.add("active");
+}
 
-        status.innerText = "Deploying token...";
-        const tx = await factory.createToken(name, symbol, fullSupply);
-        const receipt = await tx.wait();
+// TOKEN CREATION
+const FACTORY_ADDRESS = "0xYourFactoryAddressHere";
+const FACTORY_ABI = ["function createToken(string name, string symbol, uint256 supply) public returns (address)"];
 
-        // Extract deployed token address from logs if available
-        const event = receipt.logs?.[0]?.address;
-        status.innerHTML = `✅ Token deployed! Contract: <br><code>${event}</code>`;
-      } catch (err) {
-        console.error(err);
-        status.innerText = "❌ Error: " + (err.reason || err.message);
-      }
+async function createToken() {
+  const name = document.getElementById("name").value.trim();
+  const symbol = document.getElementById("symbol").value.trim();
+  const supply = document.getElementById("supply").value.trim();
+  const status = document.getElementById("status");
+  if (!name || !symbol || !supply) return alert("Fill in all fields");
+  try {
+    const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
+    const fullSupply = ethers.parseUnits(supply, 18);
+    status.innerText = "Deploying...";
+    const tx = await factory.createToken(name, symbol, fullSupply);
+    const receipt = await tx.wait();
+    const tokenAddr = receipt.logs?.[0]?.address;
+    status.innerHTML = `✅ Token deployed: <code>${tokenAddr}</code>`;
+  } catch (err) {
+    console.error(err);
+    status.innerText = "❌ " + (err.reason || err.message);
+  }
+}
+
+// AIRDROP
+const ERC20_ABI = [
+  "function transfer(address to, uint amount) external returns (bool)",
+  "function decimals() external view returns (uint8)"
+];
+
+async function sendAirdrop() {
+  const tokenAddr = document.getElementById("airdropToken").value.trim();
+  const status = document.getElementById("airdropStatus");
+  const text = document.getElementById("manualAirdrop").value.trim();
+
+  if (!tokenAddr) return alert("Enter token address");
+  const token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+  const decimals = await token.decimals();
+  const lines = text.split(/\n|,/).filter(l => l.trim()).map(l => l.trim());
+
+  status.innerText = "Sending...";
+  try {
+    for (let i = 0; i < lines.length; i += 2) {
+      const addr = lines[i];
+      const amt = ethers.parseUnits(lines[i+1], decimals);
+      const tx = await token.transfer(addr, amt);
+      await tx.wait();
     }
-  </script>
+    status.innerText = "✅ Airdrop sent";
+  } catch (err) {
+    console.error(err);
+    status.innerText = "❌ Airdrop failed: " + (err.reason || err.message);
+  }
+}
+
+window.onload = connectWallet;
+</script>
 </body>
 </html>
